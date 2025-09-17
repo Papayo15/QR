@@ -32,20 +32,24 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: "v4", auth });
 
+// --- Rutas ---
 app.get("/", (req, res) => {
   res.json({ ok: true, service: "QR Access Backend" });
 });
 
+// Generar invitación (QR)
 app.post("/api/invitations", (req, res) => {
   const { visitorName, unit, hostName } = req.body || {};
   if (!visitorName || !unit || !hostName) {
     return res.status(400).json({ ok: false, error: "visitorName, unit, hostName required" });
   }
   const payload = { visitorName, unit, hostName };
-  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "5m" });
-  res.json({ ok: true, token, expiresInMinutes: 5 });
+  // ⬇️ SIN expiración
+  const token = jwt.sign(payload, JWT_SECRET);
+  res.json({ ok: true, token });
 });
 
+// Validar invitación (entrada/salida)
 app.post("/api/validate", async (req, res) => {
   const { token, action, plates } = req.body || {};
   if (!token || !action || !["entry", "exit"].includes(action)) {
@@ -69,6 +73,7 @@ app.post("/api/validate", async (req, res) => {
   }
 });
 
+// Consultar bitácora
 app.get("/api/logs", async (req, res) => {
   try {
     const result = await sheets.spreadsheets.values.get({
