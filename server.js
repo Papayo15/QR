@@ -33,8 +33,10 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: "v4", auth });
 
 // --- Rutas ---
+
+// Ruta base
 app.get("/", (req, res) => {
-  res.json({ ok: true, service: "QR Access Backend" });
+  res.json({ ok: true, service: "QR Access Backend activo 🚀" });
 });
 
 // Generar invitación (QR)
@@ -43,9 +45,14 @@ app.post("/api/invitations", (req, res) => {
   if (!visitorName || !unit || !hostName) {
     return res.status(400).json({ ok: false, error: "visitorName, unit, hostName required" });
   }
+
   const payload = { visitorName, unit, hostName };
-  // ⬇️ SIN expiración
+
+  // 🚨 SIN expiración
   const token = jwt.sign(payload, JWT_SECRET);
+
+  console.log("🎫 Invitación creada:", payload);
+
   res.json({ ok: true, token });
 });
 
@@ -55,11 +62,13 @@ app.post("/api/validate", async (req, res) => {
   if (!token || !action || !["entry", "exit"].includes(action)) {
     return res.status(400).json({ ok: false, error: "token and action (entry|exit) required" });
   }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const now = new Date().toISOString();
     const row = [now, decoded.visitorName, decoded.unit, decoded.hostName, action, plates || ""];
 
+    // Guardar en Google Sheets
     await sheets.spreadsheets.values.append({
       spreadsheetId: GOOGLE_SHEET_ID,
       range: "Bitacora!A:F",
@@ -67,8 +76,11 @@ app.post("/api/validate", async (req, res) => {
       requestBody: { values: [row] },
     });
 
-    return res.json({ ok: true, status: "validated", data: decoded });
+    console.log(`✅ Validado ${action.toUpperCase()}:`, decoded);
+
+    return res.json({ ok: true, status: "validated", action, data: decoded });
   } catch (err) {
+    console.error("❌ Error validando token:", err.message);
     return res.status(400).json({ ok: false, error: "invalid_or_expired" });
   }
 });
@@ -83,10 +95,12 @@ app.get("/api/logs", async (req, res) => {
     const rows = result.data.values || [];
     res.json({ ok: true, rows });
   } catch (err) {
+    console.error("❌ Error leyendo bitácora:", err.message);
     res.status(500).json({ ok: false, error: "could_not_read_sheet" });
   }
 });
 
+// --- Iniciar servidor ---
 app.listen(PORT, () => {
   console.log(`✅ Backend corriendo en puerto ${PORT}`);
 });
