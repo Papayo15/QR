@@ -87,29 +87,4 @@ app.post("/api/validate", async (req, res) => {
 
     console.log(`✅ Validado ${action.toUpperCase()}:`, decoded);
 
-    return res.json({ ok: true, status: "validated", action, data: decoded });
-  } catch (err) {
-    console.error("❌ Error validando token:", err);
-    return res.status(400).json({ ok: false, error: err.message });
-  }
-});
-
-// Consultar bitácora
-app.get("/api/logs", async (req, res) => {
-  try {
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId: GOOGLE_SHEET_ID,
-      range: "Bitacora!A:F",
-    });
-    const rows = result.data.values || [];
-    res.json({ ok: true, rows });
-  } catch (err) {
-    console.error("❌ Error leyendo bitácora:", err.message);
-    res.status(500).json({ ok: false, error: "could_not_read_sheet" });
-  }
-});
-
-// --- Iniciar servidor ---
-app.listen(PORT, () => {
-  console.log(`✅ Backend corriendo en puerto ${PORT}`);
-});
+    return res.json({ ok: true, s
