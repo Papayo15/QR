@@ -87,4 +87,14 @@ app.post("/api/validate", async (req, res) => {
 
     console.log(`✅ Validado ${action.toUpperCase()}:`, decoded);
 
-    return res.json({ ok: true, s
+    return res.json({ ok: true, message: `Registro de ${action} guardado.` });
+  } catch (err) {
+    console.error("❌ Error validando token o guardando registro:", err);
+    return res.status(401).json({ ok: false, error: "Token inválido o expirado" });
+  }
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
