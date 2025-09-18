@@ -75,26 +75,4 @@ app.post("/api/validate", async (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const now = new Date().toISOString();
-    const row = [now, decoded.visitorName, decoded.unit, decoded.hostName, action, plates || ""];
-
-    // Guardar en Google Sheets
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: GOOGLE_SHEET_ID,
-      range: "Bitacora!A:F",
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [row] },
-    });
-
-    console.log(`✅ Validado ${action.toUpperCase()}:`, decoded);
-
-    return res.json({ ok: true, message: `Registro de ${action} guardado.` });
-  } catch (err) {
-    console.error("❌ Error validando token o guardando registro:", err);
-    return res.status(401).json({ ok: false, error: "Token inválido o expirado" });
-  }
-});
-
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+    const row = [now, decoded.visitorName, decoded.un]()
