@@ -48,8 +48,8 @@ app.post("/api/invitations", (req, res) => {
 
   const payload = { visitorName, unit, hostName };
 
-  // 🚨 SIN expiración
-  const token = jwt.sign(payload, JWT_SECRET);
+  // Token con expiración de 24 horas
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 
   console.log("🎫 Invitación creada:", payload);
 
@@ -80,8 +80,8 @@ app.post("/api/validate", async (req, res) => {
 
     return res.json({ ok: true, status: "validated", action, data: decoded });
   } catch (err) {
-    console.error("❌ Error validando token:", err.message);
-    return res.status(400).json({ ok: false, error: "invalid_or_expired" });
+    console.error("❌ Error validando token:", err);
+    return res.status(400).json({ ok: false, error: err.message });
   }
 });
 
