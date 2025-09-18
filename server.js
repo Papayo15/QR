@@ -6,6 +6,7 @@ import cors from "cors";
 import { google } from "googleapis";
 import QRCode from "qrcode";
 
+// Configuración de entorno
 dotenv.config();
 const app = express();
 app.use(express.json());
@@ -18,7 +19,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "clave_segura";
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const GOOGLE_CREDS_FILE = process.env.GOOGLE_CREDS_FILE || "credentials.json";
 
-// Load credentials: prefer GOOGLE_CREDS_BASE64 env var
+// Leer credenciales
 let creds;
 if (process.env.GOOGLE_CREDS_BASE64) {
   const jsonStr = Buffer.from(process.env.GOOGLE_CREDS_BASE64, "base64").toString("utf8");
@@ -33,14 +34,14 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: "v4", auth });
 
-// --- Rutas ---
+// Rutas
 
-// Ruta base
+// Prueba de vida
 app.get("/", (req, res) => {
   res.json({ ok: true, service: "QR Access Backend activo 🚀" });
 });
 
-// Generar invitación (QR + token)
+// Crear invitación
 app.post("/api/invitations", async (req, res) => {
   const { visitorName, unit, hostName } = req.body || {};
   if (!visitorName || !unit || !hostName) {
@@ -48,14 +49,10 @@ app.post("/api/invitations", async (req, res) => {
   }
 
   const payload = { visitorName, unit, hostName };
-
-  // Token con expiración de 24 horas
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
 
   try {
-    // Generar código QR en base64 a partir del token
     const qrCodeImage = await QRCode.toDataURL(token);
-
     console.log("🎫 Invitación creada:", payload);
 
     res.json({ ok: true, token, qrCodeImage, expiresInHours: 24 });
@@ -65,7 +62,7 @@ app.post("/api/invitations", async (req, res) => {
   }
 });
 
-// Validar invitación (entrada/salida)
+// Validar token e ingresar registro
 app.post("/api/validate", async (req, res) => {
   const { token, action, plates } = req.body || {};
   if (!token || !action || !["entry", "exit"].includes(action)) {
@@ -75,4 +72,24 @@ app.post("/api/validate", async (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const now = new Date().toISOString();
-    const row = [now, decoded.visitorName, decoded.un]()
+    const row = [now, decoded.visitorName, decoded.unit, decoded.hostName, action, plates || ""];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: GOOGLE_SHEET_ID,
+      range: "Bitacora!A:F",
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [row] },
+    });
+
+    console.log(`✅ Validado ${action.toUpperCase()}:`, decoded);
+    res.json({ ok: true, message: `Registro de ${action} guardado.` });
+  } catch (err) {
+    console.error("❌ Error validando token o escribiendo en Sheets:", err);
+    res.status(401).json({ ok: false, error: "Token inválido o expirado" });
+  }
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor escuchando en http://localhost:${PORT}`);
+});
