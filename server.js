@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import cors from "cors";
 import { google } from "googleapis";
+import QRCode from "qrcode";
 
 dotenv.config();
 const app = express();
@@ -17,7 +18,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "clave_segura";
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID || "";
 const GOOGLE_CREDS_FILE = process.env.GOOGLE_CREDS_FILE || "credentials.json";
 
-// Load credentials: prefer GOOGLE_CREDS_BASE64
+// Load credentials: prefer GOOGLE_CREDS_BASE64 env var
 let creds;
 if (process.env.GOOGLE_CREDS_BASE64) {
   const jsonStr = Buffer.from(process.env.GOOGLE_CREDS_BASE64, "base64").toString("utf8");
@@ -39,8 +40,8 @@ app.get("/", (req, res) => {
   res.json({ ok: true, service: "QR Access Backend activo 🚀" });
 });
 
-// Generar invitación (QR)
-app.post("/api/invitations", (req, res) => {
+// Generar invitación (QR + token)
+app.post("/api/invitations", async (req, res) => {
   const { visitorName, unit, hostName } = req.body || {};
   if (!visitorName || !unit || !hostName) {
     return res.status(400).json({ ok: false, error: "visitorName, unit, hostName required" });
@@ -49,11 +50,19 @@ app.post("/api/invitations", (req, res) => {
   const payload = { visitorName, unit, hostName };
 
   // Token con expiración de 24 horas
-  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
 
-  console.log("🎫 Invitación creada:", payload);
+  try {
+    // Generar código QR en base64 a partir del token
+    const qrCodeImage = await QRCode.toDataURL(token);
 
-  res.json({ ok: true, token });
+    console.log("🎫 Invitación creada:", payload);
+
+    res.json({ ok: true, token, qrCodeImage, expiresInHours: 24 });
+  } catch (err) {
+    console.error("❌ Error generando código QR:", err);
+    res.status(500).json({ ok: false, error: "Error generating QR code" });
+  }
 });
 
 // Validar invitación (entrada/salida)
