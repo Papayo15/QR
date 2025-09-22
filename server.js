@@ -35,57 +35,40 @@ app.get("/", (req, res) => {
   res.json({ ok: true, service: "QR Access Backend activo 🚀" });
 });
 
-// Generar invitación con expiración 24h
+// Generar invitación (QR + código alfanumérico 6 digitos, válido 24h)
 app.post("/api/invitations", (req, res) => {
   const { visitorName, unit, hostName } = req.body || {};
   if (!visitorName || !unit || !hostName) {
     return res.status(400).json({ ok: false, error: "visitorName, unit, hostName required" });
   }
-  const payload = { visitorName, unit, hostName };
+
+  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const payload = { visitorName, unit, hostName, code };
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
-  res.json({ ok: true, token });
+
+  res.json({ ok: true, code, token });
 });
 
-// Validar invitación
+// Validar invitación (solo entrada)
 app.post("/api/validate", async (req, res) => {
-  const { token, action, plates } = req.body || {};
-  if (!token || !action || !["entry"].includes(action)) {
-    return res.status(400).json({ ok: false, error: "token and action (entry) required" });
+  const { code } = req.body || {};
+  if (!code) {
+    return res.status(400).json({ ok: false, error: "code required" });
   }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
     const now = new Date().toISOString();
-    const row = [now, decoded.visitorName, decoded.unit, decoded.hostName, action, plates || ""];
+    const row = [now, code, "entry"];
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: GOOGLE_SHEET_ID,
-      range: "Bitacora!A:F",
+      range: "Bitacora!A:C",
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [row] },
     });
-    return res.json({ ok: true, status: "validated", data: decoded });
+
+    return res.json({ ok: true, status: "validated", code });
   } catch (err) {
     return res.status(400).json({ ok: false, error: "invalid_or_expired" });
-  }
-});
-
-// Registrar empleados con foto
-app.post("/api/employees", async (req, res) => {
-  const { name, unit, ineUrl } = req.body || {};
-  if (!name || !unit || !ineUrl) {
-    return res.status(400).json({ ok: false, error: "name, unit, ineUrl required" });
-  }
-  const now = new Date().toISOString();
-  const row = [now, name, unit, ineUrl];
-  try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: GOOGLE_SHEET_ID,
-      range: "Empleados!A:D",
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values: [row] },
-    });
-    return res.json({ ok: true, status: "employee_registered" });
-  } catch (err) {
-    return res.status(500).json({ ok: false, error: "could_not_register_employee" });
   }
 });
 
